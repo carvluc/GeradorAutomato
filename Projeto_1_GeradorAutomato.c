@@ -2,6 +2,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TAM_MAX_STRING 100
+
+/*
+ 
+2
+a
+b
+2
+0
+1
+1
+1
+-1
+1
+-1
+Nome
+1
+
+*/
+
+// Variáveis globais
+int nivelTab = 0;
+char stringTab[TAM_MAX_STRING];
+
 // Tipos
 typedef struct {
 	int qtdAlfabeto,
@@ -13,7 +37,7 @@ typedef struct {
 		tipo;
 		
 	char *alfabeto,
-		 *nomePrograma;
+		 nomePrograma[TAM_MAX_STRING];
 } Automato;
 
 // Protótipos
@@ -23,26 +47,32 @@ void destroiObjeto(Automato *);
 void geraCodigoAutomato(Automato *);
 void insereBibliotecas(FILE *);
 void insereFuncoes(FILE *, Automato *);
-void msg(char const *);
-char* concatenaString(char const *, char const *);
+void inserePrototipos(FILE *, Automato *);
+void insereMain(FILE *, Automato *);
+void insereVariaveisGlobais(FILE *);
+void fechaMain(FILE *);
+void tab();
+void iniVarsGlobais();
 
 // Funções úteis
-void msg(char const * msg){
-	printf(msg);
+void tab(){
+	int i;
+	char str[TAM_MAX_STRING];
+	for(i = 0; i < nivelTab; i++)
+		str[i] = '\t';
+	str[i] = '\0';	
+	strcpy(stringTab, str);	
 }
 
-char* concatenaString(char const *base, char const *add){
-	char* temp = NULL;
-	temp = malloc((strlen(base) + strlen(add) + 1));
-	strcpy(temp, base);
-	strcat(temp, add);
-	return temp;
+void iniVarsGlobais(){
+	int i;
+	nivelTab = 0;
 }
 
 // Funções principais
 void inicializa(Automato *aut) {
 	int i;
-	msg("Quantos simbolos possui o alfabeto? ");
+	printf("Quantos simbolos possui o alfabeto? ");
 	scanf("%d", &aut->qtdAlfabeto);
 	fflush(stdin);
 	
@@ -53,15 +83,15 @@ void inicializa(Automato *aut) {
 		fflush(stdin);
 	}
 		
-	msg("Quantos estados possui o automato? ");
+	printf("Quantos estados possui o automato? ");
 	scanf("%d", &aut->qtdEstados);
 	fflush(stdin);
 	
-	msg("Qual o estado inicial? ");
+	printf("Qual o estado inicial? ");
 	scanf("%d", &aut->estadoInicial);
 	fflush(stdin);
 	
-	msg("Quantos estados finais? ");
+	printf("Quantos estados finais? ");
 	scanf("%d", &aut->qtdEstadosFinais);
 	fflush(stdin);
 	
@@ -74,11 +104,11 @@ void inicializa(Automato *aut) {
 	
 	criaMatrizTransicao(aut);
 	
-	msg("Qual o nome do programa? ");
+	printf("Qual o nome do programa? ");
 	scanf("%s", &aut->nomePrograma);
 	fflush(stdin);
 	
-    msg("(0) goto, (1) funcao? ");
+    printf("(0) goto, (1) funcao? ");
     scanf("%d", &aut->tipo);
 	fflush(stdin);
 }
@@ -105,51 +135,78 @@ void destroiObjeto(Automato *aut){
 	free(aut->tabelaTransicao);
 	free(aut->alfabeto);
 	free(aut->estadoFinais);
-	free(aut->nomePrograma);
 	free(aut);
 }
 
 void insereBibliotecas(FILE *arq){
-    fprintf(arq, "#include <stdio.h>\n#include <stdlib.h>");
+    fprintf(arq, "#include <stdio.h>\n#include <stdlib.h>\n\n");
+}
+
+void inserePrototipos(FILE *arq, Automato *aut){
+	int i;
+	fprintf(arq, "//Protótipos de função\n");
+	for(i = 0; i < aut->qtdEstados; i++)
+		fprintf(arq, "void e%d();\n", i);
+	
+	fprintf(arq, "\n");
+}
+
+void insereMain(FILE *arq, Automato *aut){
+	nivelTab++;
+	tab();
+	
+	printf("Está realizando o printf no arquivo com:\n");
+	printf("%sx\n", stringTab);
+	
+	fprintf(arq, "int main(){\n%sgets(palavra);\n%spos=0;\n%se%d();\n", stringTab, stringTab, stringTab, aut->estadoInicial);
+}
+
+void fechaMain(FILE *arq){
+	fprintf(arq, "}\n");
+}
+
+void insereVariaveisGlobais(FILE *arq){
+	fprintf(arq, "//Variáveis globais\nchar palavra[100];\nint pos=0;\n\n");
 }
 
 void insereFuncoes(FILE *arq, Automato *aut){
 	int i, j;
 	for(i = 0; i < aut->qtdEstados; i++){
-        fprintf(arq, "void");
+        fprintf(arq, "void e%d(){\n", i);
 		for(j = 0; j < aut->qtdAlfabeto; j++){
-
+			fprintf(arq, "if()");
 		}
 	}
 }
 
 void geraCodigoAutomato(Automato *aut){
-	FILE * arq;
-	aut->nomePrograma = "Teste";
-	arq = fopen(concatenaString(aut->nomePrograma, ".c"), "w+");
-	
+	FILE * arq;	
+	arq = fopen(strcat(aut->nomePrograma, ".c"), "w+");
 	insereBibliotecas(arq);
+	insereVariaveisGlobais(arq);
+	inserePrototipos(arq, aut);
+	insereMain(arq, aut);
+	fechaMain(arq);
 	if(aut->tipo == 1)
 		insereFuncoes(arq, aut);
 	else
-		//insereGoTo(arq, aut);
+		//insereGoTo(arq, aut);	
 	
 	fclose(arq);
 }
 
-
-
 // Main
 int main()
 {
+	iniVarsGlobais();
     Automato *novo;
     novo = malloc(sizeof(Automato));
-    msg("*********** GERADOR DE PROGRAMA ***********\n");
-    //inicializa(novo);
+    printf("*********** GERADOR DE PROGRAMA ***********\n");
+    inicializa(novo);
     
     geraCodigoAutomato(novo);		
 	
-    msg("*********** PROGRAMA GERADO COM SUCESSO ***********\n");
+    printf("*********** PROGRAMA GERADO COM SUCESSO ***********\n");
     destroiObjeto(novo);
     
 	return 0;
