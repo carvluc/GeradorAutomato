@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TAM_MAX_STRING 100
+#define TAM_MAX_STRING 200
 
 /*
- 
+Fácil
 2
 a
 b
@@ -15,7 +15,28 @@ b
 1
 1
 -1
+-1
 1
+Nome
+1
+
+Difícil
+3
+a
+b
+c
+3
+0
+1
+2
+1
+-1
+-1
+-1
+2
+0
+-1
+-1
 -1
 Nome
 1
@@ -24,7 +45,6 @@ Nome
 
 // Variáveis globais
 int nivelTab = 0;
-char stringTab[TAM_MAX_STRING];
 
 // Tipos
 typedef struct {
@@ -51,17 +71,28 @@ void inserePrototipos(FILE *, Automato *);
 void insereMain(FILE *, Automato *);
 void insereVariaveisGlobais(FILE *);
 void fechaMain(FILE *);
-void tab();
+char* tab(int);
 void iniVarsGlobais();
+int buscaLinear();
 
 // Funções úteis
-void tab(){
+char* tab(int tam){
 	int i;
-	char str[TAM_MAX_STRING];
-	for(i = 0; i < nivelTab; i++)
+	char * str = malloc(tam + 1);
+	for(i = 0; i < tam; i++)
 		str[i] = '\t';
 	str[i] = '\0';	
-	strcpy(stringTab, str);	
+	
+	return str;
+}
+
+int buscaLinear(int *v, int tam, int n){
+	int i;
+	for(i = 0; i < tam; i++)
+		if(v[i] == n)
+			return 1;
+			
+	return 0;
 }
 
 void iniVarsGlobais(){
@@ -144,7 +175,7 @@ void insereBibliotecas(FILE *arq){
 
 void inserePrototipos(FILE *arq, Automato *aut){
 	int i;
-	fprintf(arq, "//Protótipos de função\n");
+	fprintf(arq, "//Protótipos de função\nvoid aceita();\nvoid rejeita();\n");
 	for(i = 0; i < aut->qtdEstados; i++)
 		fprintf(arq, "void e%d();\n", i);
 	
@@ -152,30 +183,38 @@ void inserePrototipos(FILE *arq, Automato *aut){
 }
 
 void insereMain(FILE *arq, Automato *aut){
-	nivelTab++;
-	tab();
-	
-	printf("Está realizando o printf no arquivo com:\n");
-	printf("%sx\n", stringTab);
-	
-	fprintf(arq, "int main(){\n%sgets(palavra);\n%spos=0;\n%se%d();\n", stringTab, stringTab, stringTab, aut->estadoInicial);
+	fprintf(arq, "//Main\nint main(){\n%sgets(palavra);\n%spos = 0;\n%se%d();\n", tab(1), tab(1), tab(1), aut->estadoInicial);
 }
 
 void fechaMain(FILE *arq){
-	fprintf(arq, "}\n");
+	fprintf(arq, "}\n\n");
 }
 
 void insereVariaveisGlobais(FILE *arq){
-	fprintf(arq, "//Variáveis globais\nchar palavra[100];\nint pos=0;\n\n");
+	fprintf(arq, "//Variáveis globais\nchar palavra[100];\nint pos = 0;\n\n");
 }
 
 void insereFuncoes(FILE *arq, Automato *aut){
-	int i, j;
+	int i, j, auxInicio=0, auxFim=0;
+	
+	fprintf(arq, "void aceita(){\n%sprintf(\"Aceita!\");\n}\n\nvoid rejeita(){\n%sprintf(\"Rejeita\");\n}\n\n", tab(1), tab(1));
+	
 	for(i = 0; i < aut->qtdEstados; i++){
         fprintf(arq, "void e%d(){\n", i);
+        auxFim = 0;
+        auxInicio = 0;
 		for(j = 0; j < aut->qtdAlfabeto; j++){
-			fprintf(arq, "if()");
+			if(aut->tabelaTransicao[i][j] != -1){
+				fprintf(arq, "%s%s(palavra[pos] == '%c'){\n%spos++;\n%se%d();\n%s}", auxInicio == 0 ? tab(1) : "", auxInicio == 0 ? "if" : "else if", aut->alfabeto[j], tab(2), tab(2), aut->tabelaTransicao[i][j], tab(1));	
+				auxFim++;
+				auxInicio++;
+			}
 		}
+		
+		if(buscaLinear(aut->estadoFinais, aut->qtdEstadosFinais, i))
+			fprintf(arq, "%s%sif(palavra[pos] == '\\0'){\n%saceita();\n%s}", auxInicio == 0 ? tab(1) : "", auxFim == 0 ? "" : "else ", tab(2), tab(1));
+			
+		fprintf(arq, "else\n%srejeita();\n}\n\n", tab(2));	
 	}
 }
 
@@ -195,19 +234,25 @@ void geraCodigoAutomato(Automato *aut){
 	fclose(arq);
 }
 
-// Main
 int main()
 {
-	iniVarsGlobais();
+	char opcao;
     Automato *novo;
     novo = malloc(sizeof(Automato));
+    
+    iniVarsGlobais();
+    
     printf("*********** GERADOR DE PROGRAMA ***********\n");
     inicializa(novo);
-    
     geraCodigoAutomato(novo);		
+    printf("*********** PROGRAMA GERADO COM SUCESSO ***********\n\n");
+    
+    printf("Deseja testar o automato em questao? [S/N]");
+	scanf("%c", &opcao);
 	
-    printf("*********** PROGRAMA GERADO COM SUCESSO ***********\n");
-    destroiObjeto(novo);
+	//Tentar compilar e abrir o programa gerado pelo comando system
+	
+	destroiObjeto(novo);
     
 	return 0;
 }
