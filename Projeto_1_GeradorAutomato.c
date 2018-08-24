@@ -43,9 +43,6 @@ Nome
 
 */
 
-// Variáveis globais
-int nivelTab = 0;
-
 // Tipos
 typedef struct {
 	int qtdAlfabeto,
@@ -63,7 +60,7 @@ typedef struct {
 // Protótipos
 void inicializa(Automato *);
 void criaMatrizTransicao(Automato *);
-void destroiObjeto(Automato *);
+void destroiAutomato(Automato *);
 void geraCodigoAutomato(Automato *);
 void insereBibliotecas(FILE *);
 void insereFuncoes(FILE *, Automato *);
@@ -93,11 +90,6 @@ int buscaLinear(int *v, int tam, int n){
 			return 1;
 			
 	return 0;
-}
-
-void iniVarsGlobais(){
-	int i;
-	nivelTab = 0;
 }
 
 // Funções principais
@@ -142,6 +134,19 @@ void inicializa(Automato *aut) {
     printf("(0) goto, (1) funcao? ");
     scanf("%d", &aut->tipo);
 	fflush(stdin);
+	
+	//Tratativa de exceção
+	if(aut->tipo > 1 || aut->tipo < 0){
+		char again;
+		printf("Verifique suas entradas!\nGostaria de tentar novamente? [S/N] ");
+		scanf("%c", &again);
+		if(again == 'S' || again == 's'){
+			system("cls");
+			inicializa(aut);	
+		}
+		else 
+			exit(1);
+	}
 }
 
 void criaMatrizTransicao(Automato *aut) {
@@ -158,7 +163,7 @@ void criaMatrizTransicao(Automato *aut) {
 		}	
 }
 
-void destroiObjeto(Automato *aut){
+void destroiAutomato(Automato *aut){
 	int i;
 	for (i = 0; i < aut->qtdEstados; i++) 
 		free(aut->tabelaTransicao[i]);
@@ -183,7 +188,13 @@ void inserePrototipos(FILE *arq, Automato *aut){
 }
 
 void insereMain(FILE *arq, Automato *aut){
-	fprintf(arq, "//Main\nint main(){\n%sgets(palavra);\n%spos = 0;\n%se%d();\n", tab(1), tab(1), tab(1), aut->estadoInicial);
+	if(aut->tipo)
+		fprintf(arq, "//Main\nint main(){\n%sgets(palavra);\n%spos = 0;\n%se%d();\n", tab(1), tab(1), tab(1), aut->estadoInicial);
+	else{
+		fprintf(arq, "//Main\nint main(){\n%sgets(palavra);\n%spos = 0;\n%sgoto E%d;\n\n", tab(1), tab(1), tab(1), aut->estadoInicial);
+		insereGoTo(arq, aut);
+	}
+		
 }
 
 void fechaMain(FILE *arq){
@@ -191,7 +202,7 @@ void fechaMain(FILE *arq){
 }
 
 void insereVariaveisGlobais(FILE *arq){
-	fprintf(arq, "//Variáveis globais\nchar palavra[100];\nint pos = 0;\n\n");
+	fprintf(arq, "//Variáveis globais\nchar palavra[%d];\nint pos = 0;\n\n", TAM_MAX_STRING);
 }
 
 void insereFuncoes(FILE *arq, Automato *aut){
@@ -218,19 +229,41 @@ void insereFuncoes(FILE *arq, Automato *aut){
 	}
 }
 
+void insereGoTo(FILE *arq, Automato *aut){
+	int i, j, auxInicio=0, auxFim=0;
+	
+	fprintf(arq, "ACEITA:\n%sprintf(\"Aceita!\");\n%sgetchar();\n%sexit(0);\n\nREJEITA:\n%sprintf(\"Rejeita\");\n%sgetchar();\n%sexit(1);\n\n", tab(1), tab(1), tab(1), tab(1), tab(1), tab(1));
+	
+	for(i = 0; i < aut->qtdEstados; i++){
+        fprintf(arq, "E%d:\n", i);
+        auxFim = 0;
+        auxInicio = 0;
+		for(j = 0; j < aut->qtdAlfabeto; j++){
+			if(aut->tabelaTransicao[i][j] != -1){
+				fprintf(arq, "%s%s(palavra[pos] == '%c'){\n%spos++;\n%sgoto E%d;\n%s}", auxInicio == 0 ? tab(1) : "", auxInicio == 0 ? "if" : "else if", aut->alfabeto[j], tab(2), tab(2), aut->tabelaTransicao[i][j], tab(1));	
+				auxFim++;
+				auxInicio++;
+			}
+		}
+		
+		if(buscaLinear(aut->estadoFinais, aut->qtdEstadosFinais, i))
+			fprintf(arq, "%s%sif(palavra[pos] == '\\0'){\n%sgoto ACEITA;\n%s}", auxInicio == 0 ? tab(1) : "", auxFim == 0 ? "" : "else ", tab(2), tab(1));
+			
+		fprintf(arq, "else\n%sgoto REJEITA;\n\n", tab(2));	
+	}
+}
+
 void geraCodigoAutomato(Automato *aut){
 	FILE * arq;	
 	arq = fopen(strcat(aut->nomePrograma, ".c"), "w+");
 	insereBibliotecas(arq);
 	insereVariaveisGlobais(arq);
-	inserePrototipos(arq, aut);
+	if(aut->tipo)
+		inserePrototipos(arq, aut);
 	insereMain(arq, aut);
 	fechaMain(arq);
-	if(aut->tipo == 1)
+	if(aut->tipo)
 		insereFuncoes(arq, aut);
-	else
-		//insereGoTo(arq, aut);	
-	
 	fclose(arq);
 }
 
@@ -239,8 +272,6 @@ int main()
 	char opcao;
     Automato *novo;
     novo = malloc(sizeof(Automato));
-    
-    iniVarsGlobais();
     
     printf("*********** GERADOR DE PROGRAMA ***********\n");
     inicializa(novo);
@@ -252,7 +283,7 @@ int main()
 	
 	//Tentar compilar e abrir o programa gerado pelo comando system
 	
-	destroiObjeto(novo);
+	destroiAutomato(novo);
     
 	return 0;
 }
